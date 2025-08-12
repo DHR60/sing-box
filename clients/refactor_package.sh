@@ -314,28 +314,28 @@ else
   echo "✓ 未发现旧包名残留，清理完成"
 fi
 
-# 11. 更新版本名称
-echo "步骤11: 更新版本名称..."
-VERSION_PROPS_FILE="android/version.properties"
-if [ -f "$VERSION_PROPS_FILE" ]; then
-  # 重写 VERSION_CODE 为 1
-  if grep -q "VERSION_CODE=" "$VERSION_PROPS_FILE"; then
-    sed -i 's/VERSION_CODE=.*/VERSION_CODE=1/' "$VERSION_PROPS_FILE"
-    echo "✓ VERSION_CODE 已更新为 1"
-  else
-    echo "VERSION_CODE=1" >> "$VERSION_PROPS_FILE"
-    echo "✓ 已添加 VERSION_CODE=1"
-  fi
-  # 检查是否已经添加了-dhr60后缀，避免重复添加
-  if ! grep -q "VERSION_NAME=.*-dhr60" "$VERSION_PROPS_FILE"; then
-    sed -i 's/VERSION_NAME=\(.*\)/VERSION_NAME=\1-dhr60/' "$VERSION_PROPS_FILE"
-    echo "已添加-dhr60后缀到VERSION_NAME"
-  else
-    echo "VERSION_NAME已包含-dhr60后缀，跳过"
-  fi
-else
-  echo "警告: $VERSION_PROPS_FILE 文件不存在"
-fi
+# # 11. 更新版本名称
+# echo "步骤11: 更新版本名称..."
+# VERSION_PROPS_FILE="android/version.properties"
+# if [ -f "$VERSION_PROPS_FILE" ]; then
+#   # 重写 VERSION_CODE 为 1
+#   if grep -q "VERSION_CODE=" "$VERSION_PROPS_FILE"; then
+#     sed -i 's/VERSION_CODE=.*/VERSION_CODE=1/' "$VERSION_PROPS_FILE"
+#     echo "✓ VERSION_CODE 已更新为 1"
+#   else
+#     echo "VERSION_CODE=1" >> "$VERSION_PROPS_FILE"
+#     echo "✓ 已添加 VERSION_CODE=1"
+#   fi
+#   # 检查是否已经添加了-dhr60后缀，避免重复添加
+#   if ! grep -q "VERSION_NAME=.*-dhr60" "$VERSION_PROPS_FILE"; then
+#     sed -i 's/VERSION_NAME=\(.*\)/VERSION_NAME=\1-dhr60/' "$VERSION_PROPS_FILE"
+#     echo "已添加-dhr60后缀到VERSION_NAME"
+#   else
+#     echo "VERSION_NAME已包含-dhr60后缀，跳过"
+#   fi
+# else
+#   echo "警告: $VERSION_PROPS_FILE 文件不存在"
+# fi
 
 # 附加步骤: 修复通配符或子包引用...
 echo "附加步骤: 修复通配符或子包引用..."
@@ -384,34 +384,30 @@ PROGUARD_FILE="android/app/proguard-rules.pro"
 
 # 定义 Go Mobile 相关的 ProGuard 规则
 GO_MOBILE_RULES="
-# Go Mobile ProGuard 规则 - 解决 Release 构建问题
-# 保留泛型签名信息 - 解决 ClassCastException 与 ParameterizedType 相关问题
--keepattributes Signature
+-dontobfuscate
 
-# 保留 Go Mobile 生成的 Java 桩代码
--keep class go.** { *; }
-
-# 保留 libbox 相关的类（基于新包名）
+# ===== 保留所有应用类（解决 JNI 问题的最简单方法）=====
 -keep class $NEW_PACKAGE.** { *; }
 
-# 保留所有 native 方法（Go Mobile 使用 JNI）
+# ===== JNI 相关保护 =====
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
-# 保留反射访问的类和方法
--keepattributes RuntimeVisibleAnnotations
--keepattributes RuntimeInvisibleAnnotations
+# ===== 保留静态成员 =====
+-keepclassmembers class * {
+    static <fields>;
+    static <methods>;
+}
+
+# ===== Android 组件保护 =====
+-keep class * extends android.app.Service { *; }
+-keep class * extends android.content.BroadcastReceiver { *; }
+
+# ===== 基本属性保留 =====
+-keepattributes Signature
 -keepattributes InnerClasses
 -keepattributes EnclosingMethod
-
-# 保留 libbox 相关的类和接口（原始包名）
--keep interface io.nekohasekai.libbox.** { *; }
--keep class io.nekohasekai.libbox.** { *; }
-
-# 保留可能通过反射访问的服务类
--keep class * extends android.app.Service { *; }
--keep class * implements android.os.Parcelable { *; }
 "
 
 # 检查 ProGuard 文件是否存在

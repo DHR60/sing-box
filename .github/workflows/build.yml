@@ -302,11 +302,6 @@ jobs:
           cd clients/android
           git checkout dev
       - name: Update version
-        if: github.event_name == 'workflow_dispatch'
-        run: |-
-          go run -v ./cmd/internal/update_android_version --ci --nightly
-      - name: Update nightly version
-        if: github.event_name != 'workflow_dispatch'
         run: |-
           go run -v ./cmd/internal/update_android_version --ci --nightly
       - name: Refactor package name
