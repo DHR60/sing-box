@@ -22,6 +22,7 @@ type TunInboundOptions struct {
 	AutoRedirectInputMark                 FwMark                           `json:"auto_redirect_input_mark,omitempty"`
 	AutoRedirectOutputMark                FwMark                           `json:"auto_redirect_output_mark,omitempty"`
 	AutoRedirectIPRoute2FallbackRuleIndex int                              `json:"auto_redirect_iproute2_fallback_rule_index,omitempty"`
+	DisableDNSHijack                      bool                             `json:"disable_dns_hijack,omitempty"`
 	LoopbackAddress                       badoption.Listable[netip.Addr]   `json:"loopback_address,omitempty"`
 	StrictRoute                           bool                             `json:"strict_route,omitempty"`
 	RouteAddress                          badoption.Listable[netip.Prefix] `json:"route_address,omitempty"`
