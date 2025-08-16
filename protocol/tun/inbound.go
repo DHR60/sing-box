@@ -212,6 +212,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IncludeMACAddress:                     includeMACAddress,
 			ExcludeMACAddress:                     excludeMACAddress,
 			InterfaceMonitor:                      networkManager.InterfaceMonitor(),
+			EXP_DisableDNSHijack:                  options.DisableDNSHijack,
 			EXP_MultiPendingPackets:               multiPendingPackets,
 		},
 		udpTimeout:        udpTimeout,

@@ -27,6 +27,7 @@ type TunInboundOptions struct {
 	ExcludeMPTCP                  bool                             `json:"exclude_mptcp,omitempty"`
 	LoopbackAddress               badoption.Listable[netip.Addr]   `json:"loopback_address,omitempty"`
 	StrictRoute                   bool                             `json:"strict_route,omitempty"`
+	DisableDNSHijack              bool                             `json:"disable_dns_hijack,omitempty"`
 	RouteAddress                  badoption.Listable[netip.Prefix] `json:"route_address,omitempty"`
 	RouteAddressSet               badoption.Listable[string]       `json:"route_address_set,omitempty"`
 	RouteExcludeAddress           badoption.Listable[netip.Prefix] `json:"route_exclude_address,omitempty"`
