@@ -199,6 +199,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			ExcludePackage:                        options.ExcludePackage,
 			InterfaceMonitor:                      networkManager.InterfaceMonitor(),
 			Logger:                                logger,
+			EXP_DisableDNSHijack:                  options.DisableDNSHijack,
 			EXP_MultiPendingPackets:               multiPendingPackets,
 		},
 		udpTimeout:        udpTimeout,
