@@ -40,6 +40,7 @@ type TunInboundOptions struct {
 	UDPTimeout                  UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
 	Stack                       string                           `json:"stack,omitempty"`
 	Platform                    *TunPlatformOptions              `json:"platform,omitempty"`
+	DisableDNSHijack            bool                             `json:"disable_dns_hijack,omitempty"`
 	InboundOptions
 
 	// Deprecated: removed
