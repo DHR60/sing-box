@@ -60,6 +60,8 @@ PROGUARD_FILE = Path("android/app/proguard-rules.pro")
 
 PERFORMANCE_GRADLE_FILE = Path("android/gradle.properties")
 
+VERSION_FILE = Path("android/version.properties")
+
 TEXT_EXT = {
     ".kt",
     ".java",
@@ -273,6 +275,43 @@ def replace_package_res(path: Path, old_pkg: str, new_pkg: str):
         return True
 
 
+def rewrite_version(path: Path):
+    if not path.is_file():
+        return False
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+
+    original = content
+
+    # 覆写 VERSION_CODE=1
+    content = re.sub(
+        r"(?m)^(\s*VERSION_CODE\s*=\s*)([^\r\n]*)",
+        lambda m: f"{m.group(1)}1",
+        content,
+    )
+
+    # 若 VERSION_NAME 不含 -dhr60，则末尾追加 -dhr60
+    def _name_repl(m: re.Match) -> str:
+        prefix = m.group(1)
+        value = m.group(2).strip()
+        if "-dhr60" in value:
+            return f"{prefix}{value}"
+        return f"{prefix}{value}-dhr60"
+
+    content = re.sub(
+        r"(?m)^(\s*VERSION_NAME\s*=\s*)([^\r\n]*)",
+        _name_repl,
+        content,
+    )
+
+    if content != original:
+        path.write_text(content, encoding="utf-8")
+        return True
+    return False
+
+
 def main():
     print(f"Old package: {OLD_PACKAGE}")
     print(f"New package: {NEW_PACKAGE}")
@@ -384,6 +423,8 @@ def main():
     # 定义性能优化的 gradle 配置
     performance_gradle_file = PERFORMANCE_GRADLE_FILE
     performance_gradle_file.write_text(PERFORMANCE_GRADLE_CONTENT, encoding="utf-8")
+
+    rewrite_version(VERSION_FILE)
 
     print("Refactoring completed successfully.")
 
