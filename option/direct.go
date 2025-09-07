@@ -16,6 +16,7 @@ type DirectInboundOptions struct {
 
 type _DirectOutboundOptions struct {
 	DialerOptions
+	DirectDomainStrategy DomainStrategy `json:"direct_domain_strategy,omitempty"`
 	// Deprecated: Use Route Action instead
 	OverrideAddress string `json:"override_address,omitempty"`
 	// Deprecated: Use Route Action instead
