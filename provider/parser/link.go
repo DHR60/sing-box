@@ -36,6 +36,8 @@ func ParseSubscriptionLink(link string) (option.Outbound, error) {
 		return parseHysteria2Link(link)
 	case "anytls":
 		return parseAnyTLSLink(link)
+	case "vless":
+		return parseVLESSLink(link)
 	}
 	result[3], _ = DecodeBase64URLSafe(result[3])
 	link = strings.Join(result[1:], "")
@@ -44,8 +46,6 @@ func ParseSubscriptionLink(link string) (option.Outbound, error) {
 		return parseShadowsocksLink(link)
 	case "vmess":
 		return parseVMessLink(link)
-	case "vless":
-		return parseVLESSLink(link)
 	default:
 		return option.Outbound{}, E.New("unsupported scheme: ", scheme)
 	}
