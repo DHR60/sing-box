@@ -223,7 +223,7 @@ type TLSOption struct {
 }
 
 func (t *TLSOption) Build() *option.OutboundTLSOptions {
-	if t == nil {
+	if t == nil || !t.TLS {
 		return nil
 	}
 	if t.SNI == "" {
