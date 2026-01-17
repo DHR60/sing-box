@@ -126,7 +126,7 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	err := s.loadCacheFile()
 	if err != nil {
-		return E.Cause(err, "restore cached outbound provider")
+		s.logger.Error("restore cached outbound provider: ", err)
 	}
 	if s.downloadDetour != "" {
 		outbound, loaded := s.outbound.Outbound(s.downloadDetour)
@@ -141,7 +141,8 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 		ctx = interrupt.ContextWithIsProviderConnection(ctx)
 		err := s.fetch(ctx, startContext)
 		if err != nil {
-			return E.Cause(err, "initial outbound provider: ", s.Tag())
+			s.logger.Error("initial outbound provider: ", s.Tag(), ": ", err)
+			s.lastUpdated = time.Now()
 		}
 	}
 	go s.loopUpdate()
