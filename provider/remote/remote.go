@@ -189,7 +189,8 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 	if !loadedFromCache && !loadedFromInitialPath {
 		err = s.fetch(ctx, true)
 		if err != nil {
-			return E.Cause(err, "initial outbound provider: ", s.Tag())
+			s.logger.Error("initial outbound provider: ", s.Tag(), ": ", err)
+			s.lastUpdated = time.Now()
 		}
 	}
 	if err := s.Adapter.Start(); err != nil {
