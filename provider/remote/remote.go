@@ -130,8 +130,9 @@ func NewProviderRemote(ctx context.Context, router adapter.Router, logFactory lo
 
 func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
-	if err := s.loadCacheFile(); err != nil {
-		s.logger.Warn(E.Cause(err, "restore cached outbound provider, will refetch"))
+	err := s.loadCacheFile()
+	if err != nil {
+		s.logger.Error("restore cached outbound provider: ", err)
 	}
 	if s.downloadDetour != "" {
 		outbound, loaded := s.outbound.Outbound(s.downloadDetour)
@@ -146,7 +147,8 @@ func (s *ProviderRemote) StartContext(ctx context.Context, startContext *adapter
 		ctx = interrupt.ContextWithIsProviderConnection(ctx)
 		err := s.fetch(ctx, startContext)
 		if err != nil {
-			return E.Cause(err, "initial outbound provider: ", s.Tag())
+			s.logger.Error("initial outbound provider: ", s.Tag(), ": ", err)
+			s.lastUpdated = time.Now()
 		}
 	}
 	s.ticker = time.NewTicker(s.updateInterval)
