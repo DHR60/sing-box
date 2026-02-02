@@ -177,7 +177,6 @@ func parseTuicLink(link string) (option.Outbound, error) {
 	options.UUID = linkURL.User.Username()
 	options.Password, _ = linkURL.User.Password()
 	options.ServerOptions.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	options.ServerOptions.ServerPort = StringToType[uint16](linkURL.Port())
 	for key, values := range linkURL.Query() {
 		value := values[0]
@@ -220,6 +219,9 @@ func parseTuicLink(link string) (option.Outbound, error) {
 				TLSOptions.CertificatePinSHA256 = certSha256
 			}
 		}
+	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
 	}
 	if options.UDPOverStream {
 		options.UDPRelayMode = ""
@@ -400,7 +402,6 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 	}
 	options.UUID = linkURL.User.Username()
 	options.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	options.ServerPort = StringToType[uint16](linkURL.Port())
 	proxy := map[string]string{}
 	for key, values := range linkURL.Query() {
@@ -450,12 +451,14 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 				TLSOptions.Enabled = true
 				TLSOptions.Reality.Enabled = true
 			}
-		case "insecure", "skip-cert-verify":
+		case "allowInsecure", "insecure", "skip-cert-verify":
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
 			}
 		case "serviceName", "sni", "peer":
-			TLSOptions.ServerName = value
+			if len(TLSOptions.ServerName) == 0 {
+				TLSOptions.ServerName = value
+			}
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
 		case "pcs":
@@ -479,6 +482,9 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 				options.TCPFastOpen = true
 			}
 		}
+	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
 	}
 	outbound := option.Outbound{
 		Type: C.TypeVLESS,
@@ -507,7 +513,6 @@ func parseTrojanLink(link string) (option.Outbound, error) {
 		Reality: &option.OutboundRealityOptions{},
 	}
 	options.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	options.ServerPort = StringToType[uint16](linkURL.Port())
 	options.Password = linkURL.User.Username()
 	proxy := map[string]string{}
@@ -517,12 +522,14 @@ func parseTrojanLink(link string) (option.Outbound, error) {
 	}
 	for key, value := range proxy {
 		switch key {
-		case "insecure", "allowInsecure", "skip-cert-verify":
+		case "allowInsecure", "insecure", "skip-cert-verify":
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
 			}
 		case "serviceName", "sni", "peer":
-			TLSOptions.ServerName = value
+			if len(TLSOptions.ServerName) == 0 {
+				TLSOptions.ServerName = value
+			}
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
 		case "pcs":
@@ -564,6 +571,9 @@ func parseTrojanLink(link string) (option.Outbound, error) {
 			}
 		}
 	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
+	}
 	outbound := option.Outbound{
 		Type: C.TypeTrojan,
 		Tag:  linkURL.Fragment,
@@ -586,7 +596,6 @@ func parseHysteriaLink(link string) (option.Outbound, error) {
 		Reality: &option.OutboundRealityOptions{},
 	}
 	options.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	options.ServerPort = StringToType[uint16](linkURL.Port())
 	for key, values := range linkURL.Query() {
 		value := values[0]
@@ -594,7 +603,9 @@ func parseHysteriaLink(link string) (option.Outbound, error) {
 		case "auth":
 			options.AuthString = value
 		case "peer", "sni":
-			TLSOptions.ServerName = value
+			if len(TLSOptions.ServerName) == 0 {
+				TLSOptions.ServerName = value
+			}
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
 		case "pcs", "pinSHA256":
@@ -628,6 +639,9 @@ func parseHysteriaLink(link string) (option.Outbound, error) {
 			}
 		}
 	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
+	}
 	outbound := option.Outbound{
 		Type: C.TypeHysteria,
 		Tag:  linkURL.Fragment,
@@ -652,7 +666,6 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 	Obfs := &option.Hysteria2Obfs{}
 	options.ServerPort = uint16(443)
 	options.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	if linkURL.User != nil {
 		options.Password = linkURL.User.Username()
 	}
@@ -683,6 +696,10 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 			if certSha256 != "" {
 				TLSOptions.CertificatePinSHA256 = certSha256
 			}
+		case "peer", "sni":
+			if len(TLSOptions.ServerName) == 0 {
+				TLSOptions.ServerName = value
+			}
 		case "mport":
 			parts := strings.Split(strings.TrimSpace(value), ",")
 			portHopRange := make([]string, 0, len(parts))
@@ -705,6 +722,9 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 		case "mportHopInt":
 			options.HopInterval = StringToType[badoption.Duration](value)
 		}
+	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
 	}
 	outbound := option.Outbound{
 		Type: C.TypeHysteria2,
@@ -731,7 +751,6 @@ func parseAnyTLSLink(link string) (option.Outbound, error) {
 		Reality: &option.OutboundRealityOptions{},
 	}
 	options.Server = linkURL.Hostname()
-	TLSOptions.ServerName = linkURL.Hostname()
 	options.ServerPort = StringToType[uint16](linkURL.Port())
 	options.Password = linkURL.User.Username()
 	proxy := map[string]string{}
@@ -762,6 +781,9 @@ func parseAnyTLSLink(link string) (option.Outbound, error) {
 				options.TCPFastOpen = true
 			}
 		}
+	}
+	if len(TLSOptions.ServerName) == 0 {
+		TLSOptions.ServerName = linkURL.Hostname()
 	}
 	outbound := option.Outbound{
 		Type: C.TypeAnyTLS,
