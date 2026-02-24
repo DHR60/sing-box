@@ -214,6 +214,11 @@ func parseTuicLink(link string) (option.Outbound, error) {
 			}
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
+		case "pcs":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		}
 	}
 	if options.UDPOverStream {
@@ -304,6 +309,11 @@ func parseVMessLink(link string) (option.Outbound, error) {
 		case "insecure", "skip-cert-verify":
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
+			}
+		case "pcs":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
 			}
 		case "fp":
 			TLSOptions.UTLS.Enabled = true
@@ -449,6 +459,11 @@ func parseVLESSLink(link string) (option.Outbound, error) {
 			TLSOptions.ServerName = value
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
+		case "pcs":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		case "fp":
 			TLSOptions.UTLS.Enabled = true
 			TLSOptions.UTLS.Fingerprint = value
@@ -511,6 +526,11 @@ func parseTrojanLink(link string) (option.Outbound, error) {
 			TLSOptions.ServerName = value
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
+		case "pcs":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		case "fp":
 			TLSOptions.UTLS.Enabled = true
 			TLSOptions.UTLS.Fingerprint = value
@@ -578,6 +598,11 @@ func parseHysteriaLink(link string) (option.Outbound, error) {
 			TLSOptions.ServerName = value
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
+		case "pcs", "pinSHA256":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		case "ca":
 			TLSOptions.CertificatePath = value
 		case "ca_str":
@@ -653,6 +678,11 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
 			}
+		case "pcs", "pinSHA256":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		}
 	}
 	outbound := option.Outbound{
@@ -698,6 +728,11 @@ func parseAnyTLSLink(link string) (option.Outbound, error) {
 			TLSOptions.ServerName = value
 		case "alpn":
 			TLSOptions.ALPN = strings.Split(value, ",")
+		case "pcs", "pinSHA256":
+			certSha256, _, _ := strings.Cut(value, ",")
+			if certSha256 != "" {
+				TLSOptions.CertificatePinSHA256 = certSha256
+			}
 		case "fp":
 			TLSOptions.UTLS.Enabled = true
 			TLSOptions.UTLS.Fingerprint = value
