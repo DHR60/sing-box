@@ -706,12 +706,11 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 	for key, values := range linkURL.Query() {
 		value := values[0]
 		switch key {
-		case "up":
-			options.UpMbps, _ = strconv.Atoi(value)
-		case "down":
-			options.DownMbps, _ = strconv.Atoi(value)
-		case "mport":
-			options.ServerPorts = clashPorts(value)
+		// up and down SHOULD NOT be shared in the link!
+		// case "up":
+		// 	options.UpMbps, _ = strconv.Atoi(value)
+		// case "down":
+		// 	options.DownMbps, _ = strconv.Atoi(value)
 		case "obfs":
 			if value == "salamander" {
 				Obfs.Type = "salamander"
@@ -727,11 +726,15 @@ func parseHysteria2Link(link string) (option.Outbound, error) {
 			if value == "1" || value == "true" {
 				TLSOptions.Insecure = true
 			}
-		case "pcs", "pinSHA256":
+		case "pcs":
 			certSha256, _, _ := strings.Cut(value, ",")
 			if certSha256 != "" {
 				TLSOptions.CertificatePinSHA256 = certSha256
 			}
+		case "mport":
+			options.ServerPorts = clashPorts(value)
+		case "mportHopInt":
+			options.HopInterval = StringToType[badoption.Duration](value)
 		}
 	}
 	outbound := option.Outbound{
