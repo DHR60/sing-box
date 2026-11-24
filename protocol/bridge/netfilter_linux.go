@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"cmp"
 	"net"
 	"net/netip"
 	"os"
@@ -497,22 +498,200 @@ func egressRoutes(routeTable int, family int, link netlink.Link, fallbackType in
 			routes = append(routes, connected)
 		}
 	}
-	resolved, err := netlink.RouteGetWithOptions(probeAddress(family), &netlink.RouteGetOptions{Oif: link.Attrs().Name})
-	if err != nil || len(resolved) == 0 {
+	defaultRoute := resolveEgressDefaultRoute(routeTable, family, link, linkRoutes)
+	if defaultRoute == nil {
 		return append(routes, unroutableBridgeRoute(routeTable, family, fallbackType))
 	}
-	defaultRoute := netlink.Route{
-		LinkIndex: link.Attrs().Index,
-		Table:     routeTable,
-		Family:    family,
-		Type:      unix.RTN_UNICAST,
-		Dst:       defaultDestination(family),
+	return append(routes, *defaultRoute)
+}
+
+func resolveEgressDefaultRoute(routeTable int, family int, link netlink.Link, linkRoutes []netlink.Route) *netlink.Route {
+	var candidates []netlink.Route
+	for _, route := range linkRoutes {
+		if route.Table == unix.RT_TABLE_LOCAL || route.Table == routeTable ||
+			route.Type != unix.RTN_UNICAST || !isDefaultDestination(route.Dst) {
+			continue
+		}
+		if len(route.Gw) == 0 && link.Attrs().Flags&net.FlagPointToPoint == 0 {
+			continue
+		}
+		candidates = append(candidates, route)
 	}
-	if len(resolved[0].Gw) > 0 {
-		defaultRoute.Gw = resolved[0].Gw
-		defaultRoute.Flags = int(unix.RTNH_F_ONLINK)
+
+	resolved, err := netlink.RouteGetWithOptions(probeAddress(family), &netlink.RouteGetOptions{Oif: link.Attrs().Name})
+	if err == nil && len(resolved) > 0 && (resolved[0].Type == 0 || resolved[0].Type == unix.RTN_UNICAST) {
+		if len(resolved[0].Gw) > 0 || link.Attrs().Flags&net.FlagPointToPoint != 0 {
+			defaultRoute := &netlink.Route{
+				LinkIndex: link.Attrs().Index,
+				Table:     routeTable,
+				Family:    family,
+				Type:      unix.RTN_UNICAST,
+				Dst:       defaultDestination(family),
+			}
+			if len(resolved[0].Gw) > 0 {
+				defaultRoute.Gw = resolved[0].Gw
+				defaultRoute.Flags = int(unix.RTNH_F_ONLINK)
+			}
+			return defaultRoute
+		}
 	}
-	return append(routes, defaultRoute)
+
+	linkAddresses, _ := netlink.AddrList(link, family)
+	for _, addr := range filterAndSortLinkAddresses(linkAddresses, family, candidates) {
+		resolved, err = netlink.RouteGetWithOptions(probeAddress(family), &netlink.RouteGetOptions{
+			Oif:     link.Attrs().Name,
+			SrcAddr: addr.IP,
+		})
+		if err == nil && len(resolved) > 0 && (resolved[0].Type == 0 || resolved[0].Type == unix.RTN_UNICAST) {
+			if len(resolved[0].Gw) > 0 || link.Attrs().Flags&net.FlagPointToPoint != 0 {
+				defaultRoute := &netlink.Route{
+					LinkIndex: link.Attrs().Index,
+					Table:     routeTable,
+					Family:    family,
+					Type:      unix.RTN_UNICAST,
+					Dst:       defaultDestination(family),
+				}
+				if len(resolved[0].Gw) > 0 {
+					defaultRoute.Gw = resolved[0].Gw
+					defaultRoute.Flags = int(unix.RTNH_F_ONLINK)
+				}
+				return defaultRoute
+			}
+		}
+	}
+
+	if len(candidates) > 0 {
+		slices.SortFunc(candidates, func(a, b netlink.Route) int {
+			if a.Priority != b.Priority {
+				return cmp.Compare(a.Priority, b.Priority)
+			}
+			hasGwA := len(a.Gw) > 0
+			hasGwB := len(b.Gw) > 0
+			if hasGwA != hasGwB {
+				if hasGwA {
+					return -1
+				}
+				return 1
+			}
+			matchesSrcA := false
+			matchesSrcB := false
+			for _, addr := range linkAddresses {
+				if a.Src != nil && a.Src.Contains(addr.IP) {
+					matchesSrcA = true
+				}
+				if b.Src != nil && b.Src.Contains(addr.IP) {
+					matchesSrcB = true
+				}
+			}
+			if matchesSrcA != matchesSrcB {
+				if matchesSrcA {
+					return -1
+				}
+				return 1
+			}
+			hasSrcA := a.Src != nil
+			hasSrcB := b.Src != nil
+			if hasSrcA != hasSrcB {
+				if !hasSrcA {
+					return -1
+				}
+				return 1
+			}
+			if (a.Table == unix.RT_TABLE_MAIN) != (b.Table == unix.RT_TABLE_MAIN) {
+				if a.Table == unix.RT_TABLE_MAIN {
+					return -1
+				}
+				return 1
+			}
+			return 0
+		})
+		best := candidates[0]
+		defaultRoute := &netlink.Route{
+			LinkIndex: link.Attrs().Index,
+			Table:     routeTable,
+			Family:    family,
+			Type:      unix.RTN_UNICAST,
+			Dst:       defaultDestination(family),
+		}
+		if len(best.Gw) > 0 {
+			defaultRoute.Gw = best.Gw
+			defaultRoute.Flags = int(unix.RTNH_F_ONLINK)
+		}
+		return defaultRoute
+	}
+
+	return nil
+}
+
+func filterAndSortLinkAddresses(addresses []netlink.Addr, family int, candidates []netlink.Route) []netlink.Addr {
+	var valid []netlink.Addr
+	for _, addr := range addresses {
+		if addr.IPNet == nil || addr.IP == nil {
+			continue
+		}
+		if addr.IP.IsUnspecified() || addr.IP.IsLoopback() || addr.IP.IsMulticast() || addr.IP.IsLinkLocalUnicast() {
+			continue
+		}
+		if addr.Flags&(unix.IFA_F_TENTATIVE|unix.IFA_F_DADFAILED) != 0 {
+			continue
+		}
+		valid = append(valid, addr)
+	}
+	slices.SortFunc(valid, func(a, b netlink.Addr) int {
+		matchesSrcA := candidateMatchesAddress(candidates, a.IP)
+		matchesSrcB := candidateMatchesAddress(candidates, b.IP)
+		if matchesSrcA != matchesSrcB {
+			if matchesSrcA {
+				return -1
+			}
+			return 1
+		}
+		isDepA := a.Flags&unix.IFA_F_DEPRECATED != 0
+		isDepB := b.Flags&unix.IFA_F_DEPRECATED != 0
+		if isDepA != isDepB {
+			if !isDepA {
+				return -1
+			}
+			return 1
+		}
+		if family == unix.AF_INET6 {
+			isGuaA := isIPv6GUA(a.IP)
+			isGuaB := isIPv6GUA(b.IP)
+			if isGuaA != isGuaB {
+				if isGuaA {
+					return -1
+				}
+				return 1
+			}
+		}
+		isTempA := a.Flags&unix.IFA_F_TEMPORARY != 0
+		isTempB := b.Flags&unix.IFA_F_TEMPORARY != 0
+		if isTempA != isTempB {
+			if !isTempA {
+				return -1
+			}
+			return 1
+		}
+		return 0
+	})
+	return valid
+}
+
+func candidateMatchesAddress(candidates []netlink.Route, ip net.IP) bool {
+	for _, route := range candidates {
+		if route.Src != nil && route.Src.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func isIPv6GUA(ip net.IP) bool {
+	ip16 := ip.To16()
+	if ip16 == nil || ip.To4() != nil {
+		return false
+	}
+	return (ip16[0] & 0xe0) == 0x20
 }
 
 func activeBridgeFamilies(inet6Port netip.Addr) []int {
